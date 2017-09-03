@@ -3,11 +3,6 @@
 ---- @copyright 2012 dluksza
 ------------------------------------------------------------------------------
 
--- /etc/udev/rules.d/98-screen-detect.rules calls /usr/lib/udev/notify-awesome
--- whenever changes of /sysidrm/card0 occur. notify-awesome calls the function
--- updateScreens using awesome-client.
-
-
 -- Package environment
 local naughty = require('naughty')
 local awful = require("awful")
@@ -48,7 +43,7 @@ local function isOutputConnected(path)
 	return 'connected\n' == value
 end
 
-local function connectedOutputs(path, card)
+function connectedOutputs(path, card)
 	local result = {}
 	local outputs = io.popen('ls -1 -d ' .. path .. '/' .. card .. '-*')
 	while true do
@@ -90,7 +85,7 @@ local function getScreenId(output)
 	return screenId
 end
 
-local function getXrandrOutput(outputPath, outCard)
+function getXrandrOutput(outputPath, outCard)
    -- convert /sys/class/drm/.. name to name in xrandr using outputMapping
 	local regex = dev .. outCard .. '/' .. outCard .. '[-]'
 	local drmName = string.gsub(outputPath, regex, '')
@@ -166,7 +161,6 @@ local screenIds = {}
 local function disableOutput(out, changedCard)
 	local xrandrOut = getXrandrOutput(out, changedCard)
 	-- local screenId = getScreenId(out) -- can't get edid when device is disconnected
-	-- todo: initialize screenId when awesome starts; awesome restarts with connected monitor break the system atm
 	local screenId = screenIds[xrandrOut]
 	screenIds[xrandrOut] = nil
 	performConfiguredAction(screenId, 'disconnected', xrandrOut)
@@ -174,14 +168,14 @@ local function disableOutput(out, changedCard)
 end
 
 local function enableOutput(out, changedCard)
-	local xrandrOut = getXrandrOutput(out, changedCard) --HDMI2
+	local xrandrOut = getXrandrOutput(out, changedCard)
 	local screenId = getScreenId(out)
 	screenIds[xrandrOut] = screenId
 	performConfiguredAction(screenId, 'connected', xrandrOut)
+	naughty.notify({text = 'Output ' .. xrandrOut .. ' connected'})
 end
 
-local cardDev = dev .. card
-local outputs = connectedOutputs(cardDev, card)
+local outputs = {}
 
 function updateScreens(changedCard)
 	local newCardDev = dev .. changedCard
@@ -189,16 +183,24 @@ function updateScreens(changedCard)
 	local mergedOutputs = mergeTables(outputs, newOutputs)
 
 	for out in pairs(mergedOutputs) do
-	   -- out = /sys/class/drm/card0-HDMI-A-2
-	   -- changedCard = card0
-	   naughty.notify({text = out})
 	   if not outputs[out] then -- connected
 	      enableOutput(out, changedCard)
-	      naughty.notify({text = "Connected: "..out})
 	   elseif not newOutputs[out] then -- disconnected
 	      disableOutput(out, changedCard)
 	   end
 	end
 	outputs = newOutputs
 end
+
+local function init()
+   -- fill outputs table & proper initialize all screens according to config
+   updateScreens(card)
+   -- fill screenIds
+   for out in pairs(outputs) do
+      local xrandrOut = getXrandrOutput(out, card)
+      screenIds[xrandrOut] = getScreenId(out)
+   end
+end
+
+init()
 

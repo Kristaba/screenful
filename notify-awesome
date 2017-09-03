@@ -1,35 +1,21 @@
 #!/bin/sh
 
-echo "Changes to "$1" "$(date) >> /tmp/monitor.log
-#USER=`who | grep tty7 | awk '{print $1}'`
+USER=`who | grep tty7 | awk '{print $1}'`
 
 # if no tty7, try tty1
 
-#if [ -z "$USER" ]; then
-#	USER=`who | grep tty1 | awk '{print $1}'`
-#fi
+if [ -z "$USER" ]; then
+	USER=`who | grep tty1 | awk '{print $1}'`
+fi
 
-# who not working consistently
-USER="fred"
-
-
-# for root to connect to awesome-client it is neccessary to set dbus_session_bus_address correctly
-# get bus_address from awesome process: $ grep -z DBUS_SESSION_BUS_ADDRESS /proc/$(pidof awesome)/environ
-# set bus_address as root: $ export DBUS_SESSION_BUS_ADDRESS="..."
+# Using X11 for dbus-daemon autolaunch was disabled on my system
+# For root to connect to awesome-client therefore DBUS_SESSION_BUS_ADDRESS is set
 
 notify() {
-    su - $USER -c "export DBUS_SESSION_BUS_ADDRESS=\"unix:path=/run/user/1000/bus\"; \
+    su - $USER -c "export DBUS_SESSION_BUS_ADDRESS=\"$(grep -z DBUS_SESSION_BUS_ADDRESS /proc/$(pidof awesome)/environ | cut -d= -f2,3)\"; \
        	     	 export DISPLAY=':0.0'; \
                  export XAUTHORITY='/home/$USER/.Xauthority'; \
 		 awesome-client 'updateScreens(\"$1\")'"
-    #su $USER -c "export DISPLAY=':0.0';\
-    #export XAUTHORITY='/home/$USER/.Xauthority';\
-    #su $USER -c "echo 'updateScreens(\"$1\")' | awesome-client"
 }
 
 notify $1
-echo "Awesome screen update done" >> /tmp/monitor.log
-
-#su fred -c "notify-send \"test\""
-#su fred -c "echo 'updateScreens(\"$1\")' | awesome-client"
-#sudo -u fred echo 'updateScreens("$1")' | awesome-client 
