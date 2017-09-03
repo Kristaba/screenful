@@ -3,7 +3,7 @@
 ---- @copyright 2012 dluksza
 ------------------------------------------------------------------------------
 
--- Package envronment
+-- Package environment
 local naughty = require('naughty')
 local awful = require("awful")
 
@@ -20,7 +20,7 @@ local outputMapping = {
 	['LVDS-1'] = 'LVDS1',
 	['HDMI-A-1'] = 'HDMI1',
 	['HDMI-A-2'] = 'HDMI2',
-	['eDP1'] = 'LVDS1'
+	['eDP-1'] = 'eDP1'
 }
 
 local function log(text)
@@ -43,7 +43,7 @@ local function isOutputConnected(path)
 	return 'connected\n' == value
 end
 
-local function connectedOutputs(path, card)
+function connectedOutputs(path, card)
 	local result = {}
 	local outputs = io.popen('ls -1 -d ' .. path .. '/' .. card .. '-*')
 	while true do
@@ -79,13 +79,14 @@ local function getScreenId(output)
 		end
 	end
 	if emptyStr(id) then
-		log('cannot read EDID after "' .. waitForEdid .. 's')
+		log('cannot read EDID of ' .. output .. 'after ' .. waitForEdid .. 's')
 	end
 
 	return screenId
 end
 
-local function getXrandrOutput(outputPath, outCard)
+function getXrandrOutput(outputPath, outCard)
+   -- convert /sys/class/drm/.. name to name in xrandr using outputMapping
 	local regex = dev .. outCard .. '/' .. outCard .. '[-]'
 	local drmName = string.gsub(outputPath, regex, '')
 
@@ -145,7 +146,7 @@ local function performConfiguredAction(screenId, action, xrandrOut)
 		end
 	else -- configuration not found, append configuration template
 		if tostring(screenId):len() ~= 0 and not hasConfigurationFor(screenId) then
-			naughty.notify({text = 'Append new configuration for screen id: ' .. screenId})
+			naughty.notify({text = 'Append new configuration for screen id: ' .. screenId .. '('.. xrandrOut ..')'})
 			appendConfiguration(screenId)
 		end
 	end
@@ -155,9 +156,13 @@ local function performConfiguredAction(screenId, action, xrandrOut)
 	setupScreen(xrandrOpts)
 end
 
+local screenIds = {}
+
 local function disableOutput(out, changedCard)
 	local xrandrOut = getXrandrOutput(out, changedCard)
-	local screenId = getScreenId(out)
+	-- local screenId = getScreenId(out) -- can't get edid when device is disconnected
+	local screenId = screenIds[xrandrOut]
+	screenIds[xrandrOut] = nil
 	performConfiguredAction(screenId, 'disconnected', xrandrOut)
 	naughty.notify({ text='Output ' .. xrandrOut .. ' disconnected' })
 end
@@ -165,11 +170,12 @@ end
 local function enableOutput(out, changedCard)
 	local xrandrOut = getXrandrOutput(out, changedCard)
 	local screenId = getScreenId(out)
+	screenIds[xrandrOut] = screenId
 	performConfiguredAction(screenId, 'connected', xrandrOut)
+	naughty.notify({text = 'Output ' .. xrandrOut .. ' connected'})
 end
 
-local cardDev = dev .. card
-local outputs = connectedOutputs(cardDev, card)
+local outputs = {}
 
 function updateScreens(changedCard)
 	local newCardDev = dev .. changedCard
@@ -177,12 +183,24 @@ function updateScreens(changedCard)
 	local mergedOutputs = mergeTables(outputs, newOutputs)
 
 	for out in pairs(mergedOutputs) do
-		if not outputs[out] then -- connected
-			enableOutput(out, changedCard)
-		elseif not newOutputs[out] then -- disconnected
-			disableOutput(out, changedCard)
-		end
+	   if not outputs[out] then -- connected
+	      enableOutput(out, changedCard)
+	   elseif not newOutputs[out] then -- disconnected
+	      disableOutput(out, changedCard)
+	   end
 	end
 	outputs = newOutputs
 end
+
+local function init()
+   -- fill outputs table & proper initialize all screens according to config
+   updateScreens(card)
+   -- fill screenIds
+   for out in pairs(outputs) do
+      local xrandrOut = getXrandrOutput(out, card)
+      screenIds[xrandrOut] = getScreenId(out)
+   end
+end
+
+init()
 

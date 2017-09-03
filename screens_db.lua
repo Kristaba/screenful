@@ -1,17 +1,26 @@
 screens = {
 	['default'] = {
 		['connected'] = function (xrandrOutput)
-			return '--output ' .. xrandrOutput .. ' --auto --same-as LVDS1'
+			return '--output ' .. xrandrOutput .. ' --auto --right-of eDP1'
 		end,
 		['disconnected'] = function (xrandrOutput)
-			return '--output ' .. xrandrOutput .. ' --off --output LVDS1 --auto'
+			return '--output ' .. xrandrOutput .. ' --off --output eDP1 --auto'
 		end
 	},
-	['55250827610'] = {
+	['300004'] = {
 		['connected'] = function (xrandrOutput)
-			return '--output ' .. xrandrOutput .. ' --auto --above LVDS1'
+			return '--output ' .. xrandrOutput .. ' --auto --above eDP1'
 		end,
-		['disconnected'] = nil
+		['disconnected'] = function (xrandrOutput)
+			return '--output ' .. xrandrOutput .. ' --off --output eDP1 --auto'
+		end
 	}
 }
-
+--	['20000044'] = {
+--		['connected'] = function ()
+--			return nil
+--		end,
+--		['disconnected'] = function ()
+--			return nil
+--		end
+--	}

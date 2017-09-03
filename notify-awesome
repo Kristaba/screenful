@@ -8,10 +8,14 @@ if [ -z "$USER" ]; then
 	USER=`who | grep tty1 | awk '{print $1}'`
 fi
 
+# Using X11 for dbus-daemon autolaunch was disabled on my system
+# For root to connect to awesome-client therefore DBUS_SESSION_BUS_ADDRESS is set
+
 notify() {
-	su $USER -c "export DISPLAY=':0.0'; \
+    su - $USER -c "export DBUS_SESSION_BUS_ADDRESS=\"$(grep -z DBUS_SESSION_BUS_ADDRESS /proc/$(pidof awesome)/environ | cut -d= -f2,3)\"; \
+       	     	 export DISPLAY=':0.0'; \
                  export XAUTHORITY='/home/$USER/.Xauthority'; \
-		 echo 'updateScreens(\"$1\")' | awesome-client"
+		 awesome-client 'updateScreens(\"$1\")'"
 }
 
-notify $1 &
+notify $1
