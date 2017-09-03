@@ -58,11 +58,9 @@ $ xrandr --output VGA1 --off --output LVDS1 --auto
 Known BUGS
 =========
 
-* when device is disconnected always default disconnect action is called
+
 
 TODO
 ====
-
-* setup proper screen organization on awesome boot
 * support more then one card
 * support conditional configuration based on connected devices/outputs and id's
